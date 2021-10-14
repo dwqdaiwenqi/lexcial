@@ -1,0 +1,19 @@
+{
+  "name": "toy-html-parser",
+  "version": "1.0.0",
+  "description": "A simple html parser for play... It's just a toy.",
+  "main": "syntaxer.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aimergenge/toy-html-parser.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/aimergenge/toy-html-parser/issues"
+  },
+  "homepage": "https://github.com/aimergenge/toy-html-parser#readme"
+}

@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>toy html parser demo</title>
+</head>
+<body>
+
+  <script>
+    var HTMLLexicalParser = function(syntaxer){
+      var state = data 
+      var token = null
+      var attribute = null
+      var characterReference = ''
+
+      this.receiveInput = function (char) {
+        if (state == null) {
+          throw new Error('error')
+        } else {
+          state = state(char)
+        }
+      }
+
+      function data (c) {
+        // debugger
+        switch (c) {
+          case '<':
+            return tagOpen
+          default:
+            emitToken(c)
+            return data
+        }
+      }
+
+      function tagOpen (c) {
+        console.log('>>>tagOpen',c)
+
+        if (c === '/') {
+          return endTagOpen
+        }
+        if (/[a-zA-Z\d]/.test(c)) {
+          token = new StartTagToken()
+          token.name = c.toLowerCase()
+          return tagName
+        }
+        return error(c)
+      }
+
+
+      function tagName (c) {
+        console.log('>>>tagName',c)
+        if  (c === '/') {
+          return selfClosingTag
+        }
+        if  (/[\t \f\n]/.test(c)) {
+          return beforeAttributeName
+        }
+        if (c === '>') {
+          emitToken(token)
+          // emitToken(token)
+          return data
+        }
+        if (/[a-zA-Z\d]/.test(c)) {
+          token.name += c.toLowerCase()
+          return tagName
+        }
+        if(c === '|'){
+          return beforeAttributeName
+        }
+      }
+
+      function beforeAttributeName (c) {
+        console.log('>>>beforeAttributeName',c)
+        if (/[\t \f\n]/.test(c)) {
+          return beforeAttributeName
+        }
+        if (c === '/') {
+          return selfClosingTag
+        }
+      
+        if (c === '>') {
+          // TODO
+          if(token.name === 'style'){
+            selfClosingTag('>')
+            return data
+          } else {
+            emitToken(token)
+            return data
+          }
+
+        }
+        if (/["'<]/.test(c)) {
+          return error(c)
+        }
+
+        attribute = new Attribute()
+        attribute.name = c.toLowerCase()
+        attribute.value = ''
+        return attributeName
+      }
+
+      function attributeName (c) {
+        console.log('>>>attributeName',c)
+        if (c === '/') {
+          token[attribute.name] = attribute.value
+          return selfClosingTag
+        }
+        if (c === '=') {
+          return beforeAttributeValue
+        }
+        if (/[\t \f\n]/.test(c)) {
+          token[attribute.name] = ''
+          return beforeAttributeName
+        }
+        attribute.name += c.toLowerCase()
+        return attributeName
+      }
+
+      function beforeAttributeValue (c) {
+        console.log('>>>beforeAttributeValue',c)
+        if (c === '"') {
+          return attributeValueDoubleQuoted
+        }
+        if (c === "'") {
+          return attributeValueSingleQuoted
+        }
+        if (/\t \f\n/.test(c)) {
+          return beforeAttributeValue
+        }
+        attribute.value += c
+        return attributeValueUnquoted
+      }
+
+      function attributeValueDoubleQuoted (c) {
+        console.log('>>>attributeValueDoubleQuoted',c)
+        if (c === '"') {
+          token[attribute.name] = attribute.value
+          return beforeAttributeName
+        }
+        attribute.value += c
+        return attributeValueDoubleQuoted
+      }
+
+      function attributeValueSingleQuoted (c) {
+        console.log('>>>attributeValueSingleQuoted',c)
+        if (c === "'") {
+          token[attribute.name] = attribute.value
+          return beforeAttributeName
+        }
+        attribute.value += c
+        return attributeValueSingleQuoted
+      }
+
+      function attributeValueUnquoted (c) {
+        console.log('>>>attributeValueUnquoted',c)
+        if (/[\t \f\n]/.test(c)) {
+          token[attribute.name] = attribute.value
+          return beforeAttributeName
+        }
+
+        if(c === '/'){
+          if(token.name === 'url'){
+
+          }else{
+            token[attribute.name] = attribute.value
+            return selfClosingTag
+          }
+        }
+
+        if(c === '>'){
+          token[attribute.name] = attribute.value
+          return beforeAttributeName(c)
+        }
+
+        attribute.value += c
+        return attributeValueUnquoted
+      }
+
+      function selfClosingTag (c) {
+        console.log('>>>selfClosingTag',c)
+        if (c === '>') {
+          emitToken(token)
+          endToken = new EndTagToken()
+          endToken.name = token.name
+          emitToken(endToken)
+          return data
+        }
+      }
+
+      function endTagOpen (c) {
+        console.log('>>>endTagOpen',c)
+        if (/[a-zA-Z\d]/.test(c)) {
+          token = new EndTagToken()
+          token.name = c.toLowerCase()
+          return tagName
+        }
+        if (c === '>') {
+          return error(c)
+        }
+      }
+
+      function emitToken (token) {
+        syntaxer.receiveInput(token)
+      }
+
+      function error (c) {
+        console.log(`warn: unexpected char '${c}'`)
+      }
+    }
+
+
+    class StartTagToken {
+      constructor(){}
+    }
+
+    class EndTagToken {
+      constructor(){}
+    }
+
+    class Attribute {
+      constructor(){}
+    }
+
+  </script>
+  <script>
+
+    class HTMLDocument {
+      constructor () {
+        this.isDocument = true
+        this.name = 'section'
+        this.htmlTagName = this.name
+        this.children = []
+      }
+      render(){
+        return this.$el
+      }
+      renderTo($parentNode){
+        $parentNode.appendChild(this.$el)
+      }
+    }
+
+
+
+    var ElementFactory = (token)=>{
+      switch(token.name){
+        case 'm01':
+          return new M01(token);
+        case 'arg':
+          return new Arg(token);
+        case 'url':
+          return new Url(token);
+        case 'style':
+          return new Style(token);
+        case 'u':
+          return new U(token);
+        default:
+          console.warn('unknow name:', token.name)
+          return new Element(token);
+      }
+    }
+
+    var HTMLSyntaticalParser = function(){
+      var stack = [new HTMLDocument]
+      var getStackTop =  (stack)=> {
+        return stack[stack.length-1]
+      }
+      this.receiveInput = (token) => {
+        console.log('--------token',token)
+        if (typeof token === 'string') {
+          if (getStackTop(stack) instanceof Text) {
+            getStackTop(stack).value += token
+          } else {
+            var t = new Text(token)
+            getStackTop(stack).children.push(t)
+            stack.push(t)
+          }
+        } else if (getStackTop(stack) instanceof Text) {
+          stack.pop()
+        }
+        
+        if (token instanceof StartTagToken) {
+          var e = ElementFactory(token)
+          getStackTop(stack).children.push(e)
+          stack.push(e)
+        }else if(token instanceof EndTagToken){
+          stack.pop()
+        }
+
+      }
+      this.getOutput = () => stack[0]
+    }
+
+
+
+
+  </script>
+  <script>
+
+    var render = (node,container)=>{
+      return container.appendChild( _render( node ) );
+    }
+
+    var _render = (node)=>{
+      if(node instanceof Element){
+          var { children,name ,htmlTagName} = node
+          // {children,name} 避免走下个 instanceof Element 
+          var $result = _render( {children,name,htmlTagName} );
+          node.$root = $result
+          if ( node.didMount ) {
+              node.didMount();
+          }
+          return node.$root
+        }
+
+        if (node instanceof Text ) {
+          var textNode = document.createTextNode( node.value );
+          return textNode;
+        }
+
+        var dom = document.createElement( node.htmlTagName );
+
+        node.children.forEach( node => {
+          dom.appendChild(_render(node))
+        });
+
+        return dom; 
+    }
+
+
+    var parser = (str,dom)=>{
+      
+      var syntaxer = new HTMLSyntaticalParser()
+      var lexer = new HTMLLexicalParser(syntaxer)
+      
+      for (let c of str) {
+        lexer.receiveInput(c)
+      }
+      
+      var domTree = syntaxer.getOutput()
+      console.log('domTree',domTree)
+      
+      // console.log(domTree)
+      render(domTree, dom)
+
+    }
+
+
+
+// tag,
+// attrs,
+// children
+class Element {
+  constructor (token) {
+    this.attrs = {}
+    Object.keys(token).filter(key=>key!=='name').forEach(key=>{
+      this.attrs[key] = token[key]
+    })
+    this.name = token.name
+    this.children = []
+  }
+}
+class Text {
+  constructor (value) {
+    this.val = value ?? ''
+    // this.$el = document.createTextNode(this.val)
+  }
+  get value(){
+    return  this.val
+  }
+  set value(v){  
+    this.val = v
+    // this.$el = document.createTextNode(this.val)
+  }
+  render(){
+    return this
+  }
+  renderTo($parentNode){
+    $parentNode.appendChild(this.$el)
+  }
+}
+
+class M01 extends Element{
+  static style = ``
+  constructor(token){
+    super(token)
+    this.htmlTagName = 'div'
+  }
+
+  didMount(){
+
+    this.$root.style.cssText = `
+      border:1px dashed black;
+      background:#ddd;
+      margin:20px;
+    `
+    
+    const $nodes = this.$root.querySelectorAll('*')
+    const count = $nodes.length
+
+    if(count === 1){
+      $nodes[0].textContent = $nodes[0].textContent.replace(/\$\{local_time;(\d+)\}/,(a,b)=>{
+        const [,y,m,d] = b.match(/(\d{4})(\d{2})(\d{2})/)
+        return [y,m,d].join('-')
+      })
+    }
+
+    if(count === 2){
+      const [,textAlign] = $nodes[1].textContent.match(/\{(\w+)/)
+      $nodes[0].style.textAlign = textAlign.toLowerCase()
+      $nodes[1].remove()
+    }
+    
+  }
+}
+
+class Arg extends Element{
+  constructor(token){
+    super(token)
+    this.htmlTagName = 'p'
+  }
+  didMount(){
+    // console.log(this.$root)
+  }
+}
+
+class Url extends Element{
+  constructor(token){
+    super(token)
+    this.htmlTagName = 'a'
+  }
+  didMount(){
+    // console.log(this.$root)
+    this.$root.setAttribute('href', this.attrs.value)
+  }
+}
+
+class Style extends Element{
+  constructor(token){
+    super(token)
+    this.htmlTagName = 'style'
+  }
+  didMount(){
+    // console.log(this.$root)
+  }
+}
+
+class U extends Element{
+  constructor(token){
+    super(token)
+    this.htmlTagName = 'span'
+  }
+  didMount(){
+    // console.log(this.$root)
+  }
+}
+
+
+// parser(
+//   `<p>text</p>`,
+//   document.body
+// )
+
+
+// parser(
+//   `<m01>
+//     <arg>111</arg>
+//   </m01>`,
+//   document.body
+// )
+
+
+parser(
+  `<m01>
+    <arg>我们预计将于 UTC \${local_time;202104060200}进行为期4个小时的停服更新维护。维护期间将无法登陆游戏，给您带来的不便我们深感歉意。 </arg>
+  </m01>`,
+  document.body
+)
+
+parser(
+  `<m01>
+    <arg>
+      <url|value=https://www.facebook.com/playwarpath/>
+        <style|value=green_30>
+        <u>Join us on Facebook</u>
+      </url>
+      <arg>魔法少女12345</arg>
+    </arg>
+  </m01>`,
+  document.body
+)
+
+parser(
+  `<m01>
+    <arg>您的部队首……黑鸦军团了。</arg>
+    <arg>\${center}</arg>
+  </m01>
+  `,
+  document.body
+)
+
+  </script>
+</body>
+</html>
